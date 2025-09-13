@@ -1,9 +1,9 @@
 plugins {
     id 'com.android.application'
     id 'kotlin-android'
-    id 'org.jetbrains.kotlin.plugin.serialization' version '2.2.0'
+    id 'org.jetbrains.kotlin.plugin.serialization' version '2.2.20'
     id 'kotlin-parcelize'
-    id 'com.google.devtools.ksp' version '2.2.0-2.0.2'
+    id 'com.google.devtools.ksp' version '2.2.20-2.0.3'
 }
 
 android {
@@ -11,11 +11,10 @@ android {
         viewBinding true
     }
 
-    compileSdk 35
-
     defaultConfig {
         applicationId "com.moefactory.bettermiuiexpress"
         minSdk 24
+        compileSdk = 36
         targetSdk 35
         versionCode 29
         versionName "1.7.2"
@@ -66,29 +65,29 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.core:core-ktx:1.16.0'
+    implementation 'androidx.core:core-ktx:1.17.0'
     implementation 'androidx.appcompat:appcompat:1.7.1'
-    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'com.google.android.material:material:1.13.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
     testImplementation 'junit:junit:4.+'
-    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+    androidTestImplementation 'androidx.test.ext:junit:1.3.0'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
 
-    implementation 'com.highcapable.yukihookapi:api:1.3.0'
+    implementation 'com.highcapable.yukihookapi:api:1.3.1'
     compileOnly 'de.robv.android.xposed:api:82'
-    ksp 'com.highcapable.yukihookapi:ksp-xposed:1.3.0'
+    ksp 'com.highcapable.yukihookapi:ksp-xposed:1.3.1'
 
     implementation 'com.github.vipulasri:timelineview:1.2.2'
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
-    implementation 'androidx.fragment:fragment-ktx:1.8.8'
-    implementation 'androidx.activity:activity-ktx:1.10.1'
+    implementation 'androidx.fragment:fragment-ktx:1.8.9'
+    implementation 'androidx.activity:activity-ktx:1.11.0'
     implementation 'com.squareup.okhttp3:okhttp:5.1.0'
     implementation 'com.squareup.okhttp3:logging-interceptor:5.1.0'
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.2'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.3'
     implementation 'com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0'
-    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.9.2'
-    implementation 'com.github.liangjingkanji:BRV:1.3.79'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.9.3'
+    implementation 'com.github.liangjingkanji:BRV:1.6.1'
     implementation 'com.squareup.retrofit2:converter-scalars:3.0.0'
     implementation 'com.squareup.retrofit2:retrofit:3.0.0'
     implementation 'com.highcapable.kavaref:kavaref-core:1.0.1'
