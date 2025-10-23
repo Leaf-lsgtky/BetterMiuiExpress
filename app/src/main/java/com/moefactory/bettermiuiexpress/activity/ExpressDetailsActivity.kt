@@ -225,7 +225,9 @@ class ExpressDetailsActivity : BaseActivity<ActivityExpressDetailsBinding>(false
             return
         }
 
-        for (uri in jumpList) {
+        val sortedList = jumpList.sorted()
+
+        for (uri in sortedList) {
             if (uri.type == "applet" && !resolvePackage("com.tencent.mm")) {
                 // Missing wechat
             } else if (uri.link.isNullOrEmpty()) {

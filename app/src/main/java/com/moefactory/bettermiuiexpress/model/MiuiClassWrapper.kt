@@ -11,9 +11,10 @@ fun Any.toExpressInfoJumpListWrapper(): ExpressInfoJumpListWrapper {
     val thirdPartyUriClass = this.javaClass
 
     val link = thirdPartyUriClass.getMethod("getLink").invoke(this) as? String
-    val type = thirdPartyUriClass.getMethod("getType").invoke(this) as? String
+    val type = runCatching { thirdPartyUriClass.getMethod("getType").invoke(this) as? String }.getOrNull()
+    val priority = runCatching { thirdPartyUriClass.getMethod("getPriority").invoke(this) as? Int }.getOrNull()
 
-    return ExpressInfoJumpListWrapper(link, type)
+    return ExpressInfoJumpListWrapper(link, type, priority)
 }
 
 fun Any.toExpressEntryWrapper() = ExpressEntryWrapper(this)
@@ -64,8 +65,20 @@ val ExpressInfoWrapper.isXiaomiOrJingDong: Boolean
 @Parcelize
 data class ExpressInfoJumpListWrapper(
     val link: String?,
-    val type: String?
-) : Parcelable
+    val type: String?,
+    val priority: Int?
+) : Parcelable, Comparable<ExpressInfoJumpListWrapper> {
+
+    override fun compareTo(other: ExpressInfoJumpListWrapper): Int {
+        return if (priority != null && other.priority != null) {
+            priority.compareTo(other.priority)
+        } else if (priority != null) {
+            -1
+        } else {
+            1
+        }
+    }
+}
 
 class ExpressEntryWrapper(private val expressEntryObject: Any) {
 
@@ -80,7 +93,9 @@ class ExpressEntryWrapper(private val expressEntryObject: Any) {
     val phone: String?
         get() = expressEntryClass.getField("phone").get(expressEntryObject) as? String
     val jumpList: List<*>?
-        get() = expressEntryClass.getMethod("getJumpList").invoke(expressEntryObject) as List<*>?
+        get() = runCatching { expressEntryClass.getMethod("getJumpList").invoke(expressEntryObject) as List<*>? }.getOrNull()
+    val uris: List<*>? // For older versions compatible
+        get() = runCatching { expressEntryClass.getMethod("getUris").invoke(expressEntryObject) as List<*>? }.getOrNull()
     val provider: String?
         get() = expressEntryClass.getMethod("getProvider").invoke(expressEntryObject) as? String
 }
