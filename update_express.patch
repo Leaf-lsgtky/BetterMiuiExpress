@@ -1,0 +1,194 @@
+--- app/src/main/java/com/moefactory/bettermiuiexpress/activity/ExpressDetailsActivity.kt
++++ app/src/main/java/com/moefactory/bettermiuiexpress/activity/ExpressDetailsActivity.kt
+@@ -19,4 +19,5 @@
+ import androidx.compose.foundation.layout.*
+ import androidx.compose.foundation.lazy.LazyColumn
++import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.foundation.lazy.itemsIndexed
+ import androidx.compose.foundation.shape.CircleShape
+@@ -29,4 +30,6 @@
+ import androidx.compose.ui.unit.dp
+ import androidx.core.net.toUri
++import androidx.compose.ui.input.nestedscroll.nestedScroll
++import androidx.compose.ui.text.style.TextAlign
+ import com.highcapable.yukihookapi.hook.factory.prefs
+ import com.moefactory.bettermiuiexpress.R
+@@ -43,6 +46,8 @@
+ import top.yukonga.miuix.kmp.icon.MiuixIcons
+-import top.yukonga.miuix.kmp.icon.basic.Close
++import top.yukonga.miuix.kmp.icon.extended.Back
++import top.yukonga.miuix.kmp.icon.extended.More
+ 
+ @SuppressLint("WorldReadableFiles")
+ class ExpressDetailsActivity : ComponentActivity() {
+@@ -102,4 +107,5 @@
+         setContent {
+             val controller = remember { ThemeController(ColorSchemeMode.System) }
+             val expressDetailsState = viewModel.expressDetails.observeAsState(null)
++            val scrollBehavior = MiuixScrollBehavior()
+ 
+@@ -113,10 +119,19 @@
+                             navigationIcon = {
+                                 IconButton(onClick = { finish() }) {
+-                                    Icon(imageVector = MiuixIcons.Basic.Close, contentDescription = "Back")
++                                    Icon(imageVector = MiuixIcons.Back, contentDescription = "Back")
+                                 }
+                             },
+                             actions = {
+                                 if (!uris.isNullOrEmpty()) {
+-                                    TextButton(
+-                                        text = "跳转",
+-                                        onClick = { startThirdAppByUris(uris) }
+-                                    )
++                                    OverlayIconDropdownMenu(
++                                        entries = listOf(
++                                            DropdownEntry(
++                                                items = uris!!.map { uri ->
++                                                    DropdownItem(
++                                                        text = uri.name ?: "跳转",
++                                                        onClick = { startThirdAppByUris(arrayListOf(uri)) }
++                                                    )
++                                                }
++                                            )
++                                        )
++                                    ) {
++                                        Icon(imageVector = MiuixIcons.More, contentDescription = "More")
++                                    }
+                                 }
+-                            }
++                            },
++                            scrollBehavior = scrollBehavior
+                         )
+@@ -128,4 +143,5 @@
+                         modifier = Modifier
+                             .fillMaxSize()
++                            .nestedScroll(scrollBehavior.nestedScrollConnection)
+                             .padding(paddingValues)
+                     ) {
+@@ -147,15 +163,33 @@
+                                 Column(modifier = Modifier.padding(16.dp)) {
+-                                    Text(
+-                                        text = getString(R.string.express_details_mail_number, miuiExpress!!.mailNumber),
+-                                        style = MiuixTheme.textStyles.title4,
+-                                        fontWeight = FontWeight.Medium
+-                                    )
+-                                    Spacer(modifier = Modifier.height(4.dp))
+                                     expressDetailsState.value?.let { result ->
+                                         if (result.isSuccess) {
+                                             val response = result.getOrNull()
++                                            Row(verticalAlignment = Alignment.CenterVertically) {
++                                                if (response != null && response.traces.isNotEmpty()) {
++                                                    Box(
++                                                        modifier = Modifier
++                                                            .background(
++                                                                color = MiuixTheme.colorScheme.primary.copy(alpha = 0.2f),
++                                                                shape = RoundedCornerShape(4.dp)
++                                                            )
++                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
++                                                    ) {
++                                                        Text(
++                                                            text = response.status,
++                                                            style = MiuixTheme.textStyles.body2,
++                                                            color = MiuixTheme.colorScheme.primary
++                                                        )
++                                                    }
++                                                    Spacer(modifier = Modifier.width(8.dp))
++                                                }
++                                                Text(
++                                                    text = getString(R.string.express_details_mail_number, miuiExpress!!.mailNumber),
++                                                    style = MiuixTheme.textStyles.title4,
++                                                    fontWeight = FontWeight.Medium
++                                                )
++                                            }
++                                            Spacer(modifier = Modifier.height(4.dp))
++                                            
+                                             if (response != null && response.traces.isNotEmpty()) {
+-                                                Text(
+-                                                    text = response.status,
+-                                                    style = MiuixTheme.textStyles.body2,
+-                                                    color = MiuixTheme.colorScheme.primary
+-                                                )
+-                                                Spacer(modifier = Modifier.height(4.dp))
+-                                                Text(
+-                                                    text = getString(R.string.data_provider_tips, response.dataSource),
+-                                                    style = MiuixTheme.textStyles.body2,
+-                                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+-                                                )
+                                             } else {
+@@ -169,5 +203,5 @@
+                                         } else {
+                                             Text(
+-                                                text = getString(R.string.express_state_unknown),
++                                                text = result.exceptionOrNull()?.message ?: getString(R.string.express_state_unknown),
+                                                 style = MiuixTheme.textStyles.body2,
+                                                 color = MiuixTheme.colorScheme.error
+@@ -176,5 +210,13 @@
+                                     }
++                                    ?: run {
++                                        Text(
++                                            text = getString(R.string.express_details_mail_number, miuiExpress!!.mailNumber),
++                                            style = MiuixTheme.textStyles.title4,
++                                            fontWeight = FontWeight.Medium
++                                        )
++                                    }
+                                 }
+                             }
+ 
+                             // Timeline
+@@ -183,12 +225,14 @@
+                                     val response = result.getOrNull()
+                                     if (response != null && response.traces.isNotEmpty()) {
+-                                        LazyColumn(
+-                                            modifier = Modifier.fillMaxWidth().weight(1f),
+-                                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+-                                        ) {
+-                                            itemsIndexed(response.traces) { index, trace ->
+-                                                TimelineNode(
+-                                                    trace = trace,
+-                                                    isFirst = index == 0,
+-                                                    isLast = index == response.traces.size - 1
+-                                                )
++                                        Card(modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
++                                            LazyColumn(
++                                                modifier = Modifier.fillMaxSize(),
++                                                contentPadding = PaddingValues(16.dp)
++                                            ) {
++                                                itemsIndexed(response.traces) { index, trace ->
++                                                    TimelineNode(
++                                                        trace = trace,
++                                                        isFirst = index == 0,
++                                                        isLast = index == response.traces.size - 1
++                                                    )
++                                                }
+                                             }
+                                         }
++                                        Text(
++                                            text = getString(R.string.data_provider_tips, response.dataSource),
++                                            style = MiuixTheme.textStyles.body2,
++                                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
++                                            textAlign = TextAlign.Center,
++                                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
++                                        )
+                                     }
+                                 } else {
+@@ -288,5 +332,5 @@
+ 
+-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
++    Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+         // Timeline graphic
+         Column(
+@@ -296,5 +340,5 @@
+             if (!isFirst) {
+-                Box(modifier = Modifier.width(2.dp).height(16.dp).background(lineColor))
++                Box(modifier = Modifier.width(2.dp).height(20.dp).background(lineColor))
+             } else {
+-                Spacer(modifier = Modifier.height(16.dp))
++                Spacer(modifier = Modifier.height(20.dp))
+             }
+@@ -315,5 +359,5 @@
+ 
+         // Content
+-        Column(modifier = Modifier.weight(1f).padding(bottom = 16.dp)) {
++        Column(modifier = Modifier.weight(1f).padding(bottom = 16.dp, top = 12.dp)) {
+             Text(
+                 text = "${trace.date} ${trace.time}",

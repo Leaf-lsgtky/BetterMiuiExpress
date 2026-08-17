@@ -8,45 +8,54 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
-import android.text.SpannableStringBuilder
-import android.text.Spanned
-import android.text.method.LinkMovementMethod
-import android.text.style.URLSpan
-import android.view.Menu
-import android.view.MenuItem
-import android.view.View
-import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.appcompat.content.res.AppCompatResources
-import androidx.core.content.ContextCompat
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.doOnNextLayout
-import androidx.recyclerview.widget.LinearLayoutManager
-import com.drake.brv.utils.linear
-import com.drake.brv.utils.models
-import com.drake.brv.utils.setup
-import com.github.vipulasri.timelineview.TimelineView
 import com.highcapable.yukihookapi.hook.factory.prefs
 import com.moefactory.bettermiuiexpress.R
 import com.moefactory.bettermiuiexpress.base.app.PREF_KEY_DEVICE_TRACK_ID
-import com.moefactory.bettermiuiexpress.base.ui.BaseActivity
-import com.moefactory.bettermiuiexpress.databinding.ActivityExpressDetailsBinding
-import com.moefactory.bettermiuiexpress.databinding.ItemTimelineNodeBinding
-import com.moefactory.bettermiuiexpress.ktx.dp
 import com.moefactory.bettermiuiexpress.model.ExpressTrace
 import com.moefactory.bettermiuiexpress.model.MiuiExpress
 import com.moefactory.bettermiuiexpress.model.ExpressInfoJumpListWrapper
-import com.moefactory.bettermiuiexpress.model.TimelineAttributes
 import com.moefactory.bettermiuiexpress.viewmodel.ExpressDetailsViewModel
-
+import top.yukonga.miuix.kmp.basic.*
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.theme.ThemeController
+import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.extended.More
+import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.style.TextAlign
+import androidx.navigationevent.NavigationEventDispatcher
+import androidx.navigationevent.NavigationEventDispatcherOwner
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import androidx.compose.runtime.CompositionLocalProvider
 @SuppressLint("WorldReadableFiles")
-class ExpressDetailsActivity : BaseActivity<ActivityExpressDetailsBinding>(false) {
+class ExpressDetailsActivity : ComponentActivity() {
 
     companion object {
         private const val ACTION_GO_TO_DETAILS = "com.moefactory.bettermiuiexpress.details"
@@ -58,13 +67,13 @@ class ExpressDetailsActivity : BaseActivity<ActivityExpressDetailsBinding>(false
             miuiExpress: MiuiExpress,
             uris: ArrayList<ExpressInfoJumpListWrapper>?
         ) {
-            if (context is Activity) { // Click items in details activity
+            if (context is Activity) {
                 context.startActivity(
                     Intent(ACTION_GO_TO_DETAILS)
                         .putExtra(INTENT_EXPRESS_SUMMARY, miuiExpress)
                         .putExtra(INTENT_URL_CANDIDATES, uris)
                 )
-            } else { // Click items in card
+            } else {
                 context.startActivity(
                     Intent(ACTION_GO_TO_DETAILS)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -75,13 +84,13 @@ class ExpressDetailsActivity : BaseActivity<ActivityExpressDetailsBinding>(false
         }
     }
 
-    override val viewBinding by viewBinding(ActivityExpressDetailsBinding::inflate)
     private val miuiExpress by lazy { intent.getParcelableExtra<MiuiExpress>(INTENT_EXPRESS_SUMMARY) }
     private val uris by lazy { intent.getParcelableArrayListExtra<ExpressInfoJumpListWrapper>(INTENT_URL_CANDIDATES) }
     private val viewModel by viewModels<ExpressDetailsViewModel>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             setTaskDescription(ActivityManager.TaskDescription(getString(R.string.express_details_title), R.drawable.ic_pa))
@@ -95,67 +104,6 @@ class ExpressDetailsActivity : BaseActivity<ActivityExpressDetailsBinding>(false
             return
         }
 
-        initUI()
-
-        initObserver()
-
-        queryExpressDetails(
-            miuiExpress!!.mailNumber,
-            miuiExpress!!.companyCode,
-            miuiExpress!!.phoneNumber,
-        )
-    }
-
-    private fun initUI() {
-        ViewCompat.setOnApplyWindowInsetsListener(viewBinding.mtToolbar) { v, insets ->
-            val stateBars = insets.getInsets(WindowInsetsCompat.Type.statusBars())
-            (v.layoutParams as? ViewGroup.MarginLayoutParams)?.apply {
-                leftMargin = stateBars.left
-                topMargin = stateBars.top
-                rightMargin = stateBars.right
-                bottomMargin = stateBars.bottom
-            }
-            insets
-        }
-
-        initTimeline()
-
-        viewBinding.stateLayout.apply {
-            loadingLayout = R.layout.loading_layout
-            emptyLayout = R.layout.empty_layout
-            errorLayout = R.layout.empty_layout
-
-            onContent {
-                viewBinding.rvTimeline.doOnNextLayout {
-                    val areAllItemsVisible =
-                        (viewBinding.rvTimeline.layoutManager as LinearLayoutManager).findLastCompletelyVisibleItemPosition() == (viewBinding.rvTimeline.adapter?.itemCount
-                            ?: 1) - 1
-                    if (areAllItemsVisible) {
-                        viewBinding.rvTimeline.overScrollMode = View.OVER_SCROLL_NEVER
-                    }
-                }
-            }
-        }
-
-        setSupportActionBar(viewBinding.mtToolbar)
-        viewBinding.actionBarTitle.text = miuiExpress?.companyName
-        viewBinding.actionBarTitle.setOnLongClickListener {
-            val debugMiuiExpress = miuiExpress?.copy(phoneNumber = null)
-            (getSystemService(CLIPBOARD_SERVICE) as? ClipboardManager)?.setPrimaryClip(
-                ClipData.newPlainText("BME-Debug", debugMiuiExpress.toString())
-            )
-            Toast.makeText(this, R.string.debug_info_copied, Toast.LENGTH_SHORT).show()
-
-            true
-        }
-        viewBinding.up.setOnClickListener { onBackPressed() }
-
-        viewBinding.tvMailNumber.text = getString(R.string.express_details_mail_number, miuiExpress!!.mailNumber)
-
-        viewBinding.stateLayout.showLoading()
-    }
-
-    private fun initObserver() {
         viewModel.kuaiDi100CompanyInfo.observe(this) {
             queryExpressDetails(
                 miuiExpress!!.mailNumber,
@@ -163,23 +111,205 @@ class ExpressDetailsActivity : BaseActivity<ActivityExpressDetailsBinding>(false
                 miuiExpress!!.phoneNumber,
             )
         }
-        viewModel.expressDetails.observe(this) {
-            if (it.isSuccess) {
-                val response = it.getOrNull()
-                if (response == null || response.traces.isEmpty()) {
-                    viewBinding.stateLayout.showEmpty()
-                    return@observe
+
+        setContent {
+            val controller = remember { ThemeController(ColorSchemeMode.System) }
+            val expressDetailsState = viewModel.expressDetails.observeAsState(null)
+            val scrollBehavior = MiuixScrollBehavior()
+            
+            val navigationEventDispatcherOwner = remember {
+                object : NavigationEventDispatcherOwner {
+                    override val navigationEventDispatcher = NavigationEventDispatcher()
                 }
-                viewBinding.tvSource.text = getString(R.string.data_provider_tips, response.dataSource)
-                viewBinding.tvStatus.text = response.status
-                viewBinding.rvTimeline.models = response.traces
-                viewBinding.stateLayout.showContent()
-            } else {
-                viewBinding.tvStatus.setText(R.string.express_state_unknown)
-                viewBinding.stateLayout.showError()
-                it.exceptionOrNull()?.printStackTrace()
+            }
+
+            MiuixTheme(controller = controller) {
+                CompositionLocalProvider(
+                    LocalNavigationEventDispatcherOwner provides navigationEventDispatcherOwner
+                ) {
+                    Scaffold(
+                        topBar = {
+                            TopAppBar(
+                                title = miuiExpress?.companyName ?: "物流详情",
+                                navigationIcon = {
+                                    IconButton(onClick = { finish() }) {
+                                        Icon(imageVector = MiuixIcons.Back, contentDescription = "Back")
+                                    }
+                                },
+                                actions = {
+                                    if (!uris.isNullOrEmpty()) {
+                                        OverlayIconDropdownMenu(
+                                            entries = listOf(
+                                                DropdownEntry(
+                                                    items = listOf(
+                                                        DropdownItem(
+                                                            text = getString(R.string.jump_to_third_party_app),
+                                                            onClick = { startThirdAppByUris(uris) }
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        ) {
+                                            Icon(imageVector = MiuixIcons.More, contentDescription = "More")
+                                        }
+                                    }
+                                },
+                                scrollBehavior = scrollBehavior
+                            )
+                        }
+                    ) { paddingValues ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                        ) {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .nestedScroll(scrollBehavior.nestedScrollConnection),
+                                contentPadding = paddingValues
+                            ) {
+                                item {
+                                    // Header Card
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                                        onClick = {
+                                            val debugMiuiExpress = miuiExpress?.copy(phoneNumber = null)
+                                            (getSystemService(CLIPBOARD_SERVICE) as? ClipboardManager)?.setPrimaryClip(
+                                                ClipData.newPlainText("BME-Debug", debugMiuiExpress.toString())
+                                            )
+                                            Toast.makeText(this@ExpressDetailsActivity, R.string.debug_info_copied, Toast.LENGTH_SHORT).show()
+                                        }
+                                    ) {
+                                        Column(modifier = Modifier.padding(16.dp)) {
+                                            expressDetailsState.value?.let { result ->
+                                                if (result.isSuccess) {
+                                                    val response = result.getOrNull()
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        if (response != null && response.traces.isNotEmpty()) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .background(
+                                                                        color = MiuixTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                                                        shape = RoundedCornerShape(4.dp)
+                                                                    )
+                                                                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                Text(
+                                                                    text = response.status,
+                                                                    style = MiuixTheme.textStyles.body2,
+                                                                    color = MiuixTheme.colorScheme.primary,
+                                                                    textAlign = TextAlign.Center
+                                                                )
+                                                            }
+                                                            Spacer(modifier = Modifier.width(8.dp))
+                                                        }
+                                                        Text(
+                                                            text = getString(R.string.express_details_mail_number, miuiExpress!!.mailNumber),
+                                                            style = MiuixTheme.textStyles.title4,
+                                                            fontWeight = FontWeight.Medium,
+                                                            textAlign = TextAlign.Center
+                                                        )
+                                                    }
+                                                    Spacer(modifier = Modifier.height(4.dp))
+                                                    
+                                                    if (response == null || response.traces.isEmpty()) {
+                                                        Text(
+                                                            text = getString(R.string.express_state_unknown),
+                                                            style = MiuixTheme.textStyles.body2,
+                                                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                                        )
+                                                    }
+                                                } else {
+                                                    Text(
+                                                        text = getString(R.string.express_state_unknown),
+                                                        style = MiuixTheme.textStyles.body2,
+                                                        color = MiuixTheme.colorScheme.error
+                                                    )
+                                                }
+                                            } ?: run {
+                                                Text(
+                                                    text = getString(R.string.express_state_unknown),
+                                                    style = MiuixTheme.textStyles.body2,
+                                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+    
+                                // Timeline
+                                expressDetailsState.value?.let { result ->
+                                    if (result.isSuccess) {
+                                        val response = result.getOrNull()
+                                        if (response != null && response.traces.isNotEmpty()) {
+                                            item {
+                                                Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                                                    Column(
+                                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 16.dp)
+                                                    ) {
+                                                        response.traces.forEachIndexed { index, trace ->
+                                                            TimelineNode(
+                                                                trace = trace,
+                                                                isFirst = index == 0,
+                                                                isLast = index == response.traces.size - 1
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            item {
+                                                Text(
+                                                    text = getString(R.string.data_provider_tips, response.dataSource),
+                                                    style = MiuixTheme.textStyles.body2,
+                                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                                    textAlign = TextAlign.Center,
+                                                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        item {
+                                            Column(
+                                                modifier = Modifier.fillMaxWidth().padding(32.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center
+                                            ) {
+                                                Image(
+                                                    painter = painterResource(id = R.drawable.app_express_detail_list_empty),
+                                                    contentDescription = null,
+                                                    modifier = Modifier.padding(bottom = 17.dp)
+                                                )
+                                                Text(
+                                                    text = getString(R.string.app_express_detail_list_empty_text),
+                                                    style = MiuixTheme.textStyles.body2,
+                                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                                    textAlign = TextAlign.Center
+                                                )
+                                            }
+                                        }
+                                    }
+                                } ?: run {
+                                    item {
+                                        Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                            CircularProgressIndicator()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
+
+        queryExpressDetails(
+            miuiExpress!!.mailNumber,
+            miuiExpress!!.companyCode,
+            miuiExpress!!.phoneNumber,
+        )
     }
 
     private fun queryExpressDetails(
@@ -198,33 +328,12 @@ class ExpressDetailsActivity : BaseActivity<ActivityExpressDetailsBinding>(false
             prefs().edit {
                 putString(PREF_KEY_DEVICE_TRACK_ID, generatedTrackId)
             }
-
             Toast.makeText(this, R.string.init_success, Toast.LENGTH_SHORT).show()
         }
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_jump -> {
-                startThirdAppByUris(uris)
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        if (!uris.isNullOrEmpty()) {
-            menuInflater.inflate(R.menu.details_menu, menu)
-        }
-        return true
-    }
-
     private fun startThirdAppByUris(jumpList: ArrayList<ExpressInfoJumpListWrapper>?) {
-        if (jumpList.isNullOrEmpty()) {
-            return
-        }
-
+        if (jumpList.isNullOrEmpty()) return
         val sortedList = jumpList.sorted()
 
         for (uri in sortedList) {
@@ -241,7 +350,6 @@ class ExpressDetailsActivity : BaseActivity<ActivityExpressDetailsBinding>(false
                 }
             }
         }
-
         Toast.makeText(this, R.string.failed_to_jump, Toast.LENGTH_SHORT).show()
     }
 
@@ -257,95 +365,60 @@ class ExpressDetailsActivity : BaseActivity<ActivityExpressDetailsBinding>(false
         return try {
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             startActivity(intent)
-
             true
         } catch (_: Exception) {
             false
         }
     }
+}
 
-    private fun initTimeline() {
-        val lineColor = ContextCompat.getColor(this, R.color.timelineLineColor)
-        val attributes = TimelineAttributes(
-            markerSize = 10.dp,
-            markerColor = Color.TRANSPARENT,
-            markerInCenter = true,
-            markerLeftPadding = 0.dp,
-            markerTopPadding = 0.dp,
-            markerRightPadding = 0.dp,
-            markerBottomPadding = 0.dp,
-            linePadding = 0.dp,
-            startLineColor = lineColor,
-            endLineColor = lineColor,
-            lineStyle = TimelineView.LineStyle.NORMAL,
-            lineWidth = 4.dp,
-            lineDashWidth = 4.dp,
-            lineDashGap = 2.dp
-        )
+@Composable
+fun TimelineNode(trace: ExpressTrace, isFirst: Boolean, isLast: Boolean) {
+    val primaryColor = MiuixTheme.colorScheme.primary
+    val mutedColor = MiuixTheme.colorScheme.onSurfaceVariantSummary
+    val textColor = if (isFirst) MiuixTheme.colorScheme.onSurface else mutedColor
+    val dotColor = if (isFirst) primaryColor else mutedColor.copy(alpha = 0.2f)
+    val lineColor = mutedColor.copy(alpha = 0.1f)
 
-        viewBinding.rvTimeline.linear().setup {
-            addType<ExpressTrace>(R.layout.item_timeline_node)
-
-            onBind {
-                val binding = ItemTimelineNodeBinding.bind(itemView)
-                val expressTrace = getModel<ExpressTrace>()
-
-                binding.node.apply {
-                    markerSize = attributes.markerSize
-                    setMarkerColor(attributes.markerColor)
-                    isMarkerInCenter = attributes.markerInCenter
-                    markerPaddingLeft = attributes.markerLeftPadding
-                    markerPaddingTop = attributes.markerTopPadding
-                    markerPaddingRight = attributes.markerRightPadding
-                    markerPaddingBottom = attributes.markerBottomPadding
-                    linePadding = attributes.linePadding
-
-                    lineWidth = attributes.lineWidth
-                    lineStyle = attributes.lineStyle
-                    lineStyleDashLength = attributes.lineDashWidth
-                    lineStyleDashGap = attributes.lineDashGap
-
-                    val nodeType = TimelineView.getTimeLineViewType(absoluteAdapterPosition, itemCount)
-                    when (absoluteAdapterPosition) {
-                        0 -> setEndLineColor(attributes.endLineColor, nodeType)
-                        itemCount -> setStartLineColor(attributes.startLineColor, nodeType)
-                        else -> {
-                            setStartLineColor(attributes.startLineColor, nodeType)
-                            setEndLineColor(attributes.endLineColor, nodeType)
-                        }
-                    }
-                }
-
-                if (absoluteAdapterPosition == 0) {
-                    binding.node.marker = AppCompatResources.getDrawable(context, R.drawable.dot_current)
-                    binding.tvDatetime.setTextColor(context.getColor(R.color.pa_express_progress_item_first_text))
-                    binding.tvCurrentStatus.setTextColor(context.getColor(R.color.pa_express_progress_item_first_text))
-                } else {
-                    binding.node.marker = AppCompatResources.getDrawable(context, R.drawable.dot_previous)
-                    binding.tvDatetime.setTextColor(context.getColor(R.color.pa_express_progress_item_text))
-                    binding.tvCurrentStatus.setTextColor(context.getColor(R.color.pa_express_progress_item_text))
-                }
-
-                binding.tvDatetime.text = getString(
-                    R.string.express_trace_date_time,
-                    expressTrace.date, expressTrace.time
-                )
-
-                val currentStatus = expressTrace.description
-                val spannableStringBuilder = SpannableStringBuilder(currentStatus)
-                val regex = "1[3|4|5|7|8][0-9]\\d{8}".toRegex()
-                val matches = regex.findAll(currentStatus)
-                for (match in matches) {
-                    spannableStringBuilder.setSpan(
-                        URLSpan("tel:${match.value}"),
-                        match.range.first,
-                        match.range.last + 1,
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
-                }
-                binding.tvCurrentStatus.text = spannableStringBuilder
-                binding.tvCurrentStatus.movementMethod = LinkMovementMethod.getInstance()
+    Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+        // Timeline graphic
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.width(28.dp)
+        ) {
+            if (!isFirst) {
+                Box(modifier = Modifier.width(1.dp).height(20.dp).background(lineColor))
+            } else {
+                Spacer(modifier = Modifier.height(20.dp))
             }
+            Box(
+                modifier = Modifier
+                    .size(if (isFirst) 12.dp else 8.dp)
+                    .background(dotColor, CircleShape)
+            )
+            if (!isLast) {
+                Box(modifier = Modifier.width(1.dp).weight(1f).defaultMinSize(minHeight = 32.dp).background(lineColor))
+            } else {
+                Spacer(modifier = Modifier.weight(1f).defaultMinSize(minHeight = 32.dp))
+            }
+        }
+        
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Content
+        Column(modifier = Modifier.weight(1f).padding(bottom = 16.dp, top = 12.dp)) {
+            Text(
+                text = "${trace.date} ${trace.time}",
+                style = MiuixTheme.textStyles.body2,
+                color = textColor,
+                fontWeight = if (isFirst) FontWeight.SemiBold else FontWeight.Normal
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = trace.description,
+                style = MiuixTheme.textStyles.body1,
+                color = textColor
+            )
         }
     }
 }
