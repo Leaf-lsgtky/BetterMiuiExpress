@@ -30,7 +30,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import com.highcapable.yukihookapi.hook.factory.prefs
+import android.content.Context
 import com.moefactory.bettermiuiexpress.R
 import com.moefactory.bettermiuiexpress.base.app.PREF_KEY_DEVICE_TRACK_ID
 import com.moefactory.bettermiuiexpress.model.ExpressTrace
@@ -317,7 +317,8 @@ class ExpressDetailsActivity : ComponentActivity() {
         companyCode: String?,
         phoneNumber: String?,
     ) {
-        val deviceTrackId = prefs().getString(PREF_KEY_DEVICE_TRACK_ID)
+        val prefs = getSharedPreferences(com.moefactory.bettermiuiexpress.base.app.PREF_NAME, Context.MODE_PRIVATE)
+        val deviceTrackId = prefs.getString(PREF_KEY_DEVICE_TRACK_ID, "")
 
         viewModel.queryExpressDetails(
             mailNumber,
@@ -325,9 +326,9 @@ class ExpressDetailsActivity : ComponentActivity() {
             phoneNumber,
             deviceTrackId
         ) { generatedTrackId ->
-            prefs().edit {
+            prefs.edit().apply {
                 putString(PREF_KEY_DEVICE_TRACK_ID, generatedTrackId)
-            }
+            }.apply()
             Toast.makeText(this, R.string.init_success, Toast.LENGTH_SHORT).show()
         }
     }

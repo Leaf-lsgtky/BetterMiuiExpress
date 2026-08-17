@@ -13,9 +13,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
-import com.highcapable.yukihookapi.YukiHookAPI
-import com.highcapable.yukihookapi.YukiHookAPI.Status.Executor
-import com.highcapable.yukihookapi.hook.factory.prefs
+import android.content.Context
+import io.github.libxposed.service.XposedService
+import io.github.libxposed.service.XposedService.OnServiceListener
 import com.moefactory.bettermiuiexpress.R
 import com.moefactory.bettermiuiexpress.base.app.PREF_KEY_DEVICE_TRACK_ID
 import com.moefactory.bettermiuiexpress.ktx.hideLauncherIcon
@@ -42,17 +42,21 @@ import androidx.compose.ui.Alignment
 
 class MainActivity : ComponentActivity() {
 
+    private var mService: XposedService? = null
+    private val isModuleActiveState = mutableStateOf(false)
+    private val frameworkNameState = mutableStateOf("")
+    private val frameworkVersionState = mutableStateOf("")
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        
-        val isModuleActive = YukiHookAPI.Status.isModuleActive
-        val executorName = Executor.name
-        val executorApiLevel = Executor.apiLevel
-        val yukiVersion = YukiHookAPI.VERSION
 
         setContent {
+            val isModuleActive by isModuleActiveState
+            val frameworkName by frameworkNameState
+            val frameworkVersion by frameworkVersionState
             val controller = remember { ThemeController(ColorSchemeMode.System) }
+            
             MiuixTheme(controller = controller) {
                 Scaffold(
                     topBar = {
@@ -71,10 +75,7 @@ class MainActivity : ComponentActivity() {
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = {
-                                startActivity(Intent(Intent.ACTION_VIEW).setData("https://github.com/HighCapable/YukiHookAPI".toUri()))
-                            }
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
                                 modifier = Modifier
@@ -90,7 +91,7 @@ class MainActivity : ComponentActivity() {
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = if (isModuleActive) stringResource(R.string.active_hook_framework_version, executorName, executorApiLevel) 
+                                        text = if (isModuleActive) stringResource(R.string.active_hook_framework_version, frameworkName, frameworkVersion) 
                                                else stringResource(R.string.inactive_description),
                                         style = MiuixTheme.textStyles.body2,
                                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary
@@ -119,42 +120,55 @@ class MainActivity : ComponentActivity() {
                                         startActivity(Intent(Intent.ACTION_VIEW).setData("https://moefactory.com".toUri()))
                                     }
                                 )
-                                ArrowPreference(
-                                    title = "YukiHookAPI",
-                                    summary = stringResource(R.string.yuki_version, yukiVersion),
-                                    onClick = {
-                                        startActivity(Intent(Intent.ACTION_VIEW).setData("https://github.com/HighCapable/YukiHookAPI".toUri()))
-                                    }
-                                )
                             }
                         }
                     }
                 }
             }
         }
+    }
 
-        if (isModuleActive) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                val currentGeneratedTrackId = prefs().getString(PREF_KEY_DEVICE_TRACK_ID)
-                if (currentGeneratedTrackId.isNotEmpty()) {
-                    return@launch
+    override fun onStart() {
+        super.onStart()
+        XposedService.requestBinding(this, object : OnServiceListener {
+            override fun onServiceStateChanged(service: XposedService?) {
+                mService = service
+                isModuleActiveState.value = service != null
+                frameworkNameState.value = service?.frameworkName ?: ""
+                frameworkVersionState.value = service?.frameworkVersion ?: ""
+                
+                if (service != null) {
+                    checkAndGenerateTrackId(service)
+                }
+            }
+        })
+    }
+
+    private fun checkAndGenerateTrackId(service: XposedService) {
+        val prefs = getSharedPreferences(com.moefactory.bettermiuiexpress.base.app.PREF_NAME, Context.MODE_PRIVATE)
+        lifecycleScope.launch(Dispatchers.IO) {
+            val currentGeneratedTrackId = prefs.getString(PREF_KEY_DEVICE_TRACK_ID, "") ?: ""
+            if (currentGeneratedTrackId.isNotEmpty()) {
+                // Sync to RemotePreferences just in case
+                service.getRemotePreferences("default").edit()?.putString(PREF_KEY_DEVICE_TRACK_ID, currentGeneratedTrackId)?.apply()
+                return@launch
+            }
+
+            val generatedTrackId = UUID.randomUUID().toString()
+            if (ExpressActualRepository.registerDeviceTrackIdActual(generatedTrackId)) {
+                prefs.edit().apply {
+                    putString(PREF_KEY_DEVICE_TRACK_ID, generatedTrackId)
+                }.apply()
+                service.getRemotePreferences("default").edit()?.putString(PREF_KEY_DEVICE_TRACK_ID, generatedTrackId)?.apply()
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, R.string.init_success_and_hide, Toast.LENGTH_SHORT).show()
                 }
 
-                val generatedTrackId = UUID.randomUUID().toString()
-                if (ExpressActualRepository.registerDeviceTrackIdActual(generatedTrackId)) {
-                    prefs().edit {
-                        putString(PREF_KEY_DEVICE_TRACK_ID, generatedTrackId)
-                    }
+                delay(5000)
 
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivity, R.string.init_success_and_hide, Toast.LENGTH_SHORT).show()
-                    }
-
-                    delay(5000)
-
-                    if (isLauncherIconEnabled()) {
-                        hideLauncherIcon()
-                    }
+                if (isLauncherIconEnabled()) {
+                    hideLauncherIcon()
                 }
             }
         }

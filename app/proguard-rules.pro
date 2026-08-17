@@ -21,11 +21,11 @@
 -renamesourcefileattribute SourceFile
 
 # YukiHookAPI & Xposed
--keep class * implements de.robv.android.xposed.IXposedHookLoadPackage { *; }
--keep class * implements de.robv.android.xposed.IXposedHookZygoteInit { *; }
--keep class * implements de.robv.android.xposed.IXposedHookInitPackageResources { *; }
--keep class com.moefactory.bettermiuiexpress.hook.** { *; }
--keep class com.highcapable.yukihookapi.** { *; }
+-dontwarn io.github.libxposed.annotation.**
+-adaptresourcefilecontents META-INF/xposed/java_init.list
+-keep,allowoptimization,allowobfuscation public class * extends io.github.libxposed.api.XposedModule {
+    public <init>();
+}
 
 # Kotlinx Serialization
 -keepattributes *Annotation*, InnerClasses

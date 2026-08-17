@@ -1,16 +1,19 @@
 package com.moefactory.bettermiuiexpress.base.app
 
-import com.highcapable.yukihookapi.hook.factory.prefs
-import com.highcapable.yukihookapi.hook.xposed.application.ModuleApplication
+import android.app.Application
+import android.content.Context
 import com.moefactory.bettermiuiexpress.ktx.hideLauncherIcon
 import com.moefactory.bettermiuiexpress.ktx.isLauncherIconEnabled
 
-class BetterMiuiExpress : ModuleApplication() {
+class BetterMiuiExpress : Application() {
 
     override fun onCreate() {
         super.onCreate()
 
-        if (isLauncherIconEnabled() && prefs().getString(PREF_KEY_DEVICE_TRACK_ID).isNotEmpty()) {
+        val prefs = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val trackId = prefs.getString(PREF_KEY_DEVICE_TRACK_ID, "") ?: ""
+        
+        if (isLauncherIconEnabled() && trackId.isNotEmpty()) {
             hideLauncherIcon()
         }
     }

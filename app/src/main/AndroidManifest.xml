@@ -31,7 +31,10 @@
             android:value="Prevent Express entry in MIUI Personal Assistant calling Alibaba apps." />
         <meta-data
             android:name="xposedminversion"
-            android:value="93" />
+            android:value="102" />
+        <meta-data
+            android:name="libxposed:api"
+            android:value="102" />
         <meta-data
             android:name="xposedscope"
             android:resource="@array/xposed_scope" />
