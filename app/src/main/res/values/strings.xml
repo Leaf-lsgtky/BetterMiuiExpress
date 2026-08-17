@@ -1,12 +1,11 @@
 <resources>
     <string name="app_name">BetterMiuiExpress</string>
+    <string name="module_description">Prevent Express entry in MIUI Personal Assistant calling Alibaba apps.</string>
     <string name="data_provider_tips">运单数据由%1$s提供</string>
     <string name="express_details_mail_number">快递单号: %s</string>
     <string name="save_successfully">保存成功</string>
     <string name="unexpected_error">未知错误</string>
     <string name="copyright">MIUI/HyperOS 快递组件便捷小工具，用于禁止强制跳转第三方快递应用。\n如需跳转其他应用查看取件码，请通过详情页右上角进入。\n\n本模块在 GPLv3 许可下开放源代码，详情请转到 GitHub 查看。\n\nCopyright © 2021–2025 MoeFactory\nAll Rights Reserved.</string>
-    <string name="yuki">此模块使用 YukiHookAPI 构建</string>
-    <string name="yuki_version">YukiHookAPI 版本: %1$s</string>
     <string name="inactive">模块未激活</string>
     <string name="inactive_description">请检查是否在 Hook 框架中启用了本模块</string>
     <string name="active">模块已激活</string>

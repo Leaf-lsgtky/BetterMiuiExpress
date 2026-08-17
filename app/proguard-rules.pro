@@ -20,7 +20,7 @@
 # hide the original source file name.
 -renamesourcefileattribute SourceFile
 
-# YukiHookAPI & Xposed
+# LibXposed
 -dontwarn io.github.libxposed.annotation.**
 -adaptresourcefilecontents META-INF/xposed/java_init.list
 -keep,allowoptimization,allowobfuscation public class * extends io.github.libxposed.api.XposedModule {

@@ -1,6 +1,3 @@
 /build
 /release
 /debug
-/src/main/assets/xposed_init
-/src/main/assets/yukihookapi_init
-/src/main/resources/META-INF/yukihookapi_init

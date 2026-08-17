@@ -45,7 +45,7 @@ class MainActivity : ComponentActivity(), XposedServiceHelper.OnServiceListener 
     private var mService: XposedService? = null
     private val isModuleActiveState = mutableStateOf(false)
     private val frameworkNameState = mutableStateOf("")
-    private val frameworkVersionState = mutableStateOf("")
+    private val frameworkApiVersionState = mutableStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity(), XposedServiceHelper.OnServiceListener 
         setContent {
             val isModuleActive by isModuleActiveState
             val frameworkName by frameworkNameState
-            val frameworkVersion by frameworkVersionState
+            val frameworkApiVersion by frameworkApiVersionState
             val controller = remember { ThemeController(ColorSchemeMode.System) }
             
             MiuixTheme(controller = controller) {
@@ -91,7 +91,7 @@ class MainActivity : ComponentActivity(), XposedServiceHelper.OnServiceListener 
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = if (isModuleActive) stringResource(R.string.active_hook_framework_version, frameworkName, frameworkVersion) 
+                                        text = if (isModuleActive) stringResource(R.string.active_hook_framework_version, frameworkName, frameworkApiVersion)
                                                else stringResource(R.string.inactive_description),
                                         style = MiuixTheme.textStyles.body2,
                                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary
@@ -137,7 +137,7 @@ class MainActivity : ComponentActivity(), XposedServiceHelper.OnServiceListener 
         mService = service
         isModuleActiveState.value = true
         frameworkNameState.value = service.frameworkName ?: ""
-        frameworkVersionState.value = service.frameworkVersion ?: ""
+        frameworkApiVersionState.value = service.apiVersion
         
         checkAndGenerateTrackId(service)
     }
@@ -146,7 +146,7 @@ class MainActivity : ComponentActivity(), XposedServiceHelper.OnServiceListener 
         mService = null
         isModuleActiveState.value = false
         frameworkNameState.value = ""
-        frameworkVersionState.value = ""
+        frameworkApiVersionState.value = 0
     }
 
     private fun checkAndGenerateTrackId(service: XposedService) {
