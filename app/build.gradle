@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         applicationId "com.moefactory.bettermiuiexpress"
-        minSdk 24
+        minSdk 26
         compileSdk = 37
         targetSdk 35
         versionCode 31
