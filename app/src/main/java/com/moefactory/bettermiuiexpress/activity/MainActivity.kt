@@ -15,7 +15,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import android.content.Context
 import io.github.libxposed.service.XposedService
-import io.github.libxposed.service.XposedService.OnServiceListener
+import io.github.libxposed.service.XposedServiceHelper
 import com.moefactory.bettermiuiexpress.R
 import com.moefactory.bettermiuiexpress.base.app.PREF_KEY_DEVICE_TRACK_ID
 import com.moefactory.bettermiuiexpress.ktx.hideLauncherIcon
@@ -40,7 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.Alignment
 
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), XposedServiceHelper.OnServiceListener {
 
     private var mService: XposedService? = null
     private val isModuleActiveState = mutableStateOf(false)
@@ -130,18 +130,23 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        XposedService.requestBinding(this, object : OnServiceListener {
-            override fun onServiceStateChanged(service: XposedService?) {
-                mService = service
-                isModuleActiveState.value = service != null
-                frameworkNameState.value = service?.frameworkName ?: ""
-                frameworkVersionState.value = service?.frameworkVersion ?: ""
-                
-                if (service != null) {
-                    checkAndGenerateTrackId(service)
-                }
-            }
-        })
+        XposedServiceHelper.registerListener(this)
+    }
+
+    override fun onServiceBind(service: XposedService) {
+        mService = service
+        isModuleActiveState.value = true
+        frameworkNameState.value = service.frameworkName ?: ""
+        frameworkVersionState.value = service.frameworkVersion ?: ""
+        
+        checkAndGenerateTrackId(service)
+    }
+
+    override fun onServiceDied(service: XposedService) {
+        mService = null
+        isModuleActiveState.value = false
+        frameworkNameState.value = ""
+        frameworkVersionState.value = ""
     }
 
     private fun checkAndGenerateTrackId(service: XposedService) {
